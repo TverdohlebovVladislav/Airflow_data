@@ -6,8 +6,15 @@ from airflow.operators.python import PythonOperator
 from os import getenv
 from sqlalchemy import create_engine
 from datetime import datetime
+# import os
+# import sys
+# sys.path.insert(1, "~/airflow_canada_project/generate_data/")
 
-from generate_data import main
+# os.path.exists("~/airflow_canada_project/generate_data/")
+
+# import generate_data.main
+# from generate_data import main
+# import generate_data.main as main
 
 DAG_DEFAULT_ARGS = {
     'start_date': datetime(2020, 1, 1), 
@@ -22,12 +29,7 @@ schedule = "@hourly"
 # ----
 # Generate data_example
 def generate_data_ex():
-    main.generate_data()
-
-# ---
-# Update data in gogle drive 
-def update_data_in_drive():
-    pass
+    generate_data()
 
 with DAG (
         dag_id=DAG_ID,

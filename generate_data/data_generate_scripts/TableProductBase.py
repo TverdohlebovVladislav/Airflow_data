@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 
 class TableProductBase():
     
@@ -25,5 +26,12 @@ class TableProductBase():
             print("Файл " + self.__class__.__name__ + ".csv" + " сохранен!")
         else:
             print("Ошибка сохранения файла!")
+
+    def add_data_to_csv(self, path: str = "data_source/"):
+        if hasattr(self, "dataFrame") and os.path.exists(self.__class__.__name__ + ".csv"):
+            self.to_csv(path + self.__class__.__name__ + ".csv", mode='a')
+            print("Файл " + self.__class__.__name__ + ".csv" + " обновлен!")
+        else:
+            self.save_to_csv()
 
 TableProductBase.max_count_product = TableProductBase.get_max_count_product()
