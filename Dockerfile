@@ -8,7 +8,11 @@ USER root
 RUN apt-get update -qq && apt-get install vim -qqq
 
 COPY requirements.txt .
+RUN /usr/local/bin/python -m pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade google-api-python-client oauth2client
+
+ENV PYTHONPATH .
 
 WORKDIR $AIRFLOW_HOME
 

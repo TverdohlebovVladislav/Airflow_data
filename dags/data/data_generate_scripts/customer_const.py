@@ -2,7 +2,7 @@ import random
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
-from TableProductBase import TableProductBase
+from data.data_generate_scripts.TableProductBase import TableProductBase
 
 def castomer_const_find():
     def save_to_csv(dataFrame, name, path: str = "data_source/"):
