@@ -1,4 +1,4 @@
-customer_id,First name,Last name,gender,language,agree_for_promo,autopay_card,customer_category,status,data_of_birth,customer_since,email,region,termination_date,MSISDN
+customer_id,first_name,last_name,gender,language,agree_for_promo,autopay_card,customer_category,status,data_of_birth,customer_since,email,region,termination_date,msisdn
 1,Levi,Landry,male,English,0,No, physical,active,23.10.1952,16.05.2020,Levi.Landry15335@yahoo.com,Manitoba,,+14317090854
 2,Mila,Richard,female,English,0,Yes, physical,active,03.11.1979,28.09.2021,Mila.Richard7675@yahoo.com,British Columbia,,+17784902144
 3,Riley,Evans,female,Chinese,0,Yes, physical,active,23.09.1994,10.11.2021,Riley.Evans82859@gmx.com,British Columbia,,+12501440436

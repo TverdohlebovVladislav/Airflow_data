@@ -4,7 +4,7 @@ import datetime
 import random
 
 
-from data_generate_scripts.TableProductBase import TableProductBase
+from .TableProductBase import TableProductBase
 
 class Payment(TableProductBase):
 

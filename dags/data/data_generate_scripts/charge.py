@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from data_generate_scripts.TableProductBase import TableProductBase
+from .TableProductBase import TableProductBase
 
 class Charge(TableProductBase):
 
@@ -42,11 +42,11 @@ class Charge(TableProductBase):
         # –––––––––––––––––––––– cost ––––––––––––––––––––––
         cost = []
         product_id_for_charge = []
-        with open("data_source/ProductInstance.csv") as ProductInstance:
+        with open(TableProductBase.AIRFLOW_HOME + "/dags/data/data_source/ProductInstance.csv") as ProductInstance:
             ProductInstanceDf = pd.read_csv(ProductInstance, delimiter=',')
             for i in product_instance_id_FK_charge:
                 product_id_for_charge.append(ProductInstanceDf['product_id_FK'][i - 1])
-        with open("data_source/Product.csv") as Product:
+        with open(TableProductBase.AIRFLOW_HOME + "/dags/data/data_source/Product.csv") as Product:
             ProductDf = pd.read_csv(Product, delimiter=',')
             for i in product_id_for_charge:
                 cost.append(ProductDf['Price'][i - 1])

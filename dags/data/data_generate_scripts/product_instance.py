@@ -5,7 +5,7 @@ from datetime import datetime as DT
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from dateutil.parser import parse as du_parse
-from data_generate_scripts.TableProductBase import TableProductBase
+from .TableProductBase import TableProductBase
 
 class ProductInstance(TableProductBase):
 
@@ -17,7 +17,7 @@ class ProductInstance(TableProductBase):
         max_count_product = TableProductBase.get_max_count_product()
         product_data = TableProductBase.get_df()
 
-        cust = pd.read_csv("data_source/customer_const.csv")
+        cust = pd.read_csv(TableProductBase.AIRFLOW_HOME + "/dags/data/data_source/customer_const.csv")
         cust.set_index('customer_id', inplace=True)
 
 

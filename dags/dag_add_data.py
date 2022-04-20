@@ -11,17 +11,29 @@ import os.path
 
 import psycopg2
 from psycopg2 import OperationalError
-
-# При импорте - конфликты
-# from data.funcs import generate_data
+import data.data_generate_scripts as gen_scr
 
 
 DAG_DEFAULT_ARGS = {'start_date': datetime(2020, 1, 1), 'depends_on_past': False}
-DEFAULT_POSTGRES_CONN_ID = "postgres_default"
+DEFAULT_POSTGRES_CONN_ID = "clean_data"
 AIRFLOW_HOME = getenv('AIRFLOW_HOME', '/opt/airflow')
 
 DAG_ID = "ADD_DATA_TO_CLEAN"
 schedule = "@hourly"
+
+
+def load_csv_pandas(file_path: str, table_name: str, schema: str = "raw", conn_id: str = None) -> None:
+    """
+    Load data from csv to DB
+    """
+    conn_object = BaseHook.get_connection(conn_id or DEFAULT_POSTGRES_CONN_ID)
+    # extra = conn_object.extra_dejson
+    jdbc_url = f"postgresql://{conn_object.login}:{conn_object.password}@" \
+               f"{conn_object.host}:{conn_object.port}/{conn_object.schema}"
+    df = pd.read_csv(file_path)
+    engine = create_engine(jdbc_url)
+    df.set_index(df.columns[0], inplace=True)
+    df.to_sql(table_name, engine, schema=schema, if_exists="append")
 
 
 def create_connection(db_name, db_user, db_password, db_host, db_port):
@@ -75,7 +87,12 @@ def check_table_for_emptiness(table_name: str, conn_id: str = None) -> int:
     conn_object = BaseHook.get_connection(conn_id or DEFAULT_POSTGRES_CONN_ID)
     connection = create_connection('clean_data', conn_object.login, conn_object.password, conn_object.host, conn_object.port)
     query = "SELECT COUNT(*) FROM " + table_name
-    return execute_query(connection, query)
+
+    cursor = connection.cursor()
+    count_check =  cursor.execute(query)
+    result = bool(cursor.fetchone()[0])
+    return result
+    
 
 
 def create_db_for_clean_data(conn_id: str = None) -> None:
@@ -107,7 +124,7 @@ def create_db_for_clean_data(conn_id: str = None) -> None:
             allowance_sms TEXT,
             allowance_voice TEXT,
             allowance_data TEXT,
-            Price DECIMAL
+            price DECIMAL
         );
         CREATE TABLE IF NOT EXISTS customer (
             customer_id SERIAL PRIMARY KEY,
@@ -124,7 +141,7 @@ def create_db_for_clean_data(conn_id: str = None) -> None:
             email TEXT,
             region TEXT,
             termination_date DATE, 
-            MSISDN TEXT
+            msisdn TEXT
         );
         CREATE TABLE IF NOT EXISTS product_instance (
             product_instance_id_PK SERIAL PRIMARY KEY,
@@ -168,12 +185,14 @@ def create_db_for_clean_data(conn_id: str = None) -> None:
     execute_query(connetction_clean, create_tables)
 
 
-def add_data_to_clean_db() -> None:
+def add_data_to_clean_db(conn_id: str = None) -> None:
     """
     Add demo data to DB if not exists
     """
+    f = open('log.txt', 'w')
     # Create csv if it not exists
-    data_soure = 'data/data_source/'
+    path_to_files = f"{AIRFLOW_HOME}/dags/data/data_source/"
+    # data_soure = 'data/data_source/'
     check = True
     file_names = [
         'Charge.csv', 
@@ -184,30 +203,38 @@ def add_data_to_clean_db() -> None:
         'ProductInstance.csv'
     ]
     for i in range(len(file_names)):
-        if not os.path.exists(data_soure + file_names[i]):
+        if not os.path.exists(path_to_files + file_names[i]):
             check = False
             break
-        
+    
+    f.write(str(check))
     if check:  
-
+        # conn_object = BaseHook.get_connection(conn_id or DEFAULT_POSTGRES_CONN_ID)
         # jdbc_url = f"postgresql://{conn_object.login}:{conn_object.password}@" \
-        #        f"{conn_object.host}:{conn_object.port}/{conn_object.schema}"
-        # engine = create_engine(jdbc_url)
-        # df = pd.read_sql("""
-        #                 select c.customer_id, sum(p.amount) as amount, current_timestamp as execution_timestamp
-        #                 from raw.customer as c
-        #                 join raw.payments as p on c.customer_id=p.customer_id
-        #                 group by c.customer_id
-        #                 """,
-        #                 engine)
-        # df.to_sql(table_name, engine, schema=schema, if_exists="append")
+        #        f"{conn_object.host}:{conn_object.port}/clean_data"
+
+        f.write(str(check_table_for_emptiness('product')))
+        # pd.read_csv
+        if not check_table_for_emptiness('product'):
+            load_csv_pandas(path_to_files + 'Product.csv', 'product', 'public')
+        if not check_table_for_emptiness('customer'):
+            load_csv_pandas(path_to_files + 'Customer.csv', 'customer', 'public')
+        if not check_table_for_emptiness('product_instance'):
+            load_csv_pandas(path_to_files + 'ProductInstance.csv', 'product_instance', 'public')
+        if not check_table_for_emptiness('costed_event'):
+            load_csv_pandas(path_to_files + 'CostedEvent.csv', 'costed_event', 'public')
+        if not check_table_for_emptiness('charge'):
+            load_csv_pandas(path_to_files + 'Charge.csv', 'charge', 'public')
+        if not check_table_for_emptiness('payment'):
+            load_csv_pandas(path_to_files + 'Payment.csv', 'payment', 'public')
+        
         pass
     else: 
 
         # ДОДЕЛАТЬ АВТОМАТИЧЕСКУЮ ГЕНЕРАЦИЮ
         # generate_data()
         pass
-    
+    f.close()
     
 
 
@@ -242,11 +269,27 @@ with DAG(dag_id=DAG_ID,
 
     create_tables_func = PythonOperator(
         dag=dag,
-        task_id=f"{DAG_ID}.RAW.{customer_table_name}",
+        task_id=f"{DAG_ID}.create_tables_if_not_exists",
         python_callable=create_db_for_clean_data,
         op_kwargs={
             "conn_id": "raw_postgres"
         }
     )
 
-    start_task >> create_tables_func >> end_task
+    add_data_to_tables_if_not_exist = PythonOperator(
+        dag=dag,
+        task_id=f"{DAG_ID}.add_data_to_tables_if_not_exist",
+        python_callable=add_data_to_clean_db,
+        op_kwargs={
+            "conn_id": "clean_data"
+        }
+    )
+
+    start_task >> create_tables_func >> add_data_to_tables_if_not_exist >> end_task
+
+
+
+
+# f.write(df.head)
+# f.write(file_path)
+# f.write('sdsdfnsdjklfnsjdnfsdjfnksdjf')

@@ -1,4 +1,4 @@
-product_id,product_name,product_category,product_type,recurrent,cost_for_call,cost_for_sms,cost_for_data,allowance_sms,allowance_voice,allowance_data,Price
+product_id,product_name,product_category,product_type,recurrent,cost_for_call,cost_for_sms,cost_for_data,allowance_sms,allowance_voice,allowance_data,price
 1,Unlimited 25 5G,Unlimited,Tariff,regularly,0,0,0,base plan,base plan,base plan,85
 2,Unlimited 40 5G+,Unlimited,Tariff,regularly,0,0,0,base plan,base plan,base plan,90
 3,Unlimited 50 5G+,Unlimited,Tariff,regularly,0,0,0,base plan,base plan,base plan,100

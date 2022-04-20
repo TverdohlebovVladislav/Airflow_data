@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 
-from data_generate_scripts.TableProductBase import TableProductBase
+from .TableProductBase import TableProductBase
 
 class Customer(TableProductBase):
 
@@ -11,12 +11,12 @@ class Customer(TableProductBase):
         self.dataFrame = self.get_df()
 
     def get_df(self) -> pd.DataFrame:
-        customer = pd.read_csv('data_source/customer_const.csv')
+        customer = pd.read_csv(TableProductBase.AIRFLOW_HOME + "/dags/data/data_source/customer_const.csv")
         customer_id_PK = list(customer["customer_id"])
         autopay_card = list(customer["autopay_card"])
         status = list(customer["status"])
         data_of_birth = list(customer["data_of_birth"])
-        termin_date = pd.read_csv("data_source\ProductInstance.csv")
+        termin_date = pd.read_csv(TableProductBase.AIRFLOW_HOME + "/dags/data/data_source/ProductInstance.csv")
         termination_date = list (termin_date['termination_date'])
         
         # 1. Create dataframe - Customer

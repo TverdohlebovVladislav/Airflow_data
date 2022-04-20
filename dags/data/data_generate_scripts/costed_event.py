@@ -4,7 +4,7 @@ import datetime
 import random
 
 
-from data_generate_scripts.TableProductBase import TableProductBase
+from .TableProductBase import TableProductBase
 
 class CostedEvent(TableProductBase):
 
@@ -30,7 +30,7 @@ class CostedEvent(TableProductBase):
             if not pd.isnull(productDF)['cost_for_data'][i + 1]:
                 products_with_data_cost.append(productDF.index[i])
         
-        with open("data_source/ProductInstance.csv") as ProductInstance:
+        with open(TableProductBase.AIRFLOW_HOME + "/dags/data/data_source/ProductInstance.csv") as ProductInstance:
             pr_insDF = pd.read_csv(ProductInstance, delimiter=',')
 
         # ---
