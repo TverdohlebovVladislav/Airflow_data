@@ -12,14 +12,12 @@ RUN /usr/local/bin/python -m pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --upgrade google-api-python-client oauth2client
 
-ENV PYTHONPATH .
-
 WORKDIR $AIRFLOW_HOME
 
-COPY dags ${AIRFLOW_HOME}/dags
+COPY dags dags
 COPY example example
+COPY csv csv
+COPY data_generate_scripts data_generate_scripts
 
 COPY scripts scripts
 RUN chmod +x scripts
-
-USER $AIRFLOW_UID

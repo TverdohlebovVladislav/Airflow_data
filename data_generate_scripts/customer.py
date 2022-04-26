@@ -11,12 +11,12 @@ class Customer(TableProductBase):
         self.dataFrame = self.get_df()
 
     def get_df(self) -> pd.DataFrame:
-        customer = pd.read_csv(TableProductBase.AIRFLOW_HOME + "/dags/data/data_source/customer_const.csv")
-        customer_id_PK = list(customer["customer_id"])
+        customer = pd.read_csv(TableProductBase.AIRFLOW_HOME + "/csv/customer_const.csv")
+        customer_id_pk = list(customer["customer_id"])
         autopay_card = list(customer["autopay_card"])
         status = list(customer["status"])
         data_of_birth = list(customer["data_of_birth"])
-        termin_date = pd.read_csv(TableProductBase.AIRFLOW_HOME + "/dags/data/data_source/ProductInstance.csv")
+        termin_date = pd.read_csv(TableProductBase.AIRFLOW_HOME + "/csv/ProductInstance.csv")
         termination_date = list (termin_date['termination_date'])
         
         # 1. Create dataframe - Customer
@@ -69,11 +69,13 @@ class Customer(TableProductBase):
         customer_category = np.random.choice(customer_category_values, size=TableProductBase.max_count_customer - 1, p=[0.1, 0.9])
 
         # Customer_since
-        date_start = datetime.strptime('01.01.2020', '%d.%m.%Y')
+        date_start = datetime.strptime('01/01/2020', '%d/%m/%Y')
         customer_since = []
         for i in range(TableProductBase.max_count_customer - 1):
             tmp = date_start + timedelta(random.randint(0, 731))
-            customer_since.append(tmp.strftime("%d/%m/%Y").replace('/', '.'))
+            # customer_since.append(tmp.strftime("%d/%m/%Y"))
+            customer_since.append(tmp.strftime("%Y-%m-%d"))
+
         
         # region
         code_and_region = {'Ontario': [226, 249, 289, 343, 365, 416, 437, 519, 548, 613, 647, 705, 807, 905],
@@ -101,10 +103,10 @@ class Customer(TableProductBase):
 
         CustomerDf = pd.DataFrame(
             {
-                "customer_id": pd.Series(customer_id_PK, name="customer_id", dtype="int"),
-                "customer_id": pd.Series(customer_id_PK, name="customer_id", dtype="int"),
-                "First name": pd.Series(first_name, name="first_name", dtype="str"),
-                "Last name": pd.Series(last_name, name="last_name", dtype="str"),
+                "customer_id": pd.Series(customer_id_pk, name="customer_id", dtype="int"),
+                "customer_id": pd.Series(customer_id_pk, name="customer_id", dtype="int"),
+                "first_name": pd.Series(first_name, name="first_name", dtype="str"),
+                "last_name": pd.Series(last_name, name="last_name", dtype="str"),
                 "gender": pd.Series(gender, name="gender", dtype="str"),
                 "language": pd.Series(language, name='language', dtype='str'),
                 "agree_for_promo": pd.Series(agree_for_promo, name='agree_for_promo', dtype='str'),
@@ -117,7 +119,7 @@ class Customer(TableProductBase):
                 "region": pd.Series(region, name="email", dtype="str"),
                 "termination_date": pd.Series(termination_date,name = "termination_date", dtype = "str"),
 
-                "MSISDN": pd.Series(phone_number,name = "MSISDN", dtype = "str"),
+                "msisdn": pd.Series(phone_number,name = "msisdn", dtype = "str"),
                 
             }
         )

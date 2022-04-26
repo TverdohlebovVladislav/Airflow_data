@@ -17,8 +17,8 @@ class Payment(TableProductBase):
 
         # ---
         # Create dataframe - Payment
-        payment_id_PK: list  = [i for i in range(1, self.max_count_costed_payment)]
-        customer_id_FK_in_payment: list = np.random.randint(1, self.max_count_customer, size=self.max_count_costed_payment - 1)
+        payment_id_pk: list  = [i for i in range(1, self.max_count_costed_payment)]
+        customer_id_fk_in_payment: list = np.random.randint(1, self.max_count_customer, size=self.max_count_costed_payment - 1)
 
         # Payment method
         payment_method = np.random.choice(payment_methods, size=self.max_count_costed_payment-1, p=[0.7, 0.2, 0.1])
@@ -35,14 +35,14 @@ class Payment(TableProductBase):
         d2 = datetime.datetime.strptime('12/31/2021 00:00 PM', '%m/%d/%Y %H:%M %p')
         for i in range(self.max_count_costed_payment - 1):
             rnd = random_date(d1, d2)
-            date.append(rnd.strftime("%d/%m/%Y %I:%M %p").replace('/', '.'))
+            date.append(rnd.strftime("%Y-%m-%d %I:%M %p"))
         date.sort(key=lambda lst: (lst[8:10], lst[2:5], lst[0:2], lst[-2::1], lst[-8:-6], lst[-5:-3]))
 
         # Amount
         middle = 0
         for i in range(1, self.max_count_product):
             if TableProductBase.get_df()['recurrent'][i] == 'regularly':
-                middle += TableProductBase.get_df()['Price'][i]
+                middle += TableProductBase.get_df()['price'][i]
         middle /= self.max_count_product
         amount_once = np.random.choice([10, 15, 50, 90, 140], size=(self.max_count_costed_payment-1) // 3, p=[0.1, 0.3, 0.3, 0.2, 0.1])
         amount_reg = np.random.normal(loc=middle, scale=2.5, size=self.max_count_costed_payment-1 - (self.max_count_costed_payment-1) // 3)
@@ -52,13 +52,13 @@ class Payment(TableProductBase):
 
         PaymentDf = pd.DataFrame(
             {
-                "payment_id_PK": pd.Series(payment_id_PK, name="payment_id_PK", dtype="int"),
-                "customer_id_FK": pd.Series(customer_id_FK_in_payment, name="customer_id_FK", dtype="int"),
+                "payment_id_pk": pd.Series(payment_id_pk, name="payment_id_pk", dtype="int"),
+                "customer_id_fk": pd.Series(customer_id_fk_in_payment, name="customer_id_fk", dtype="int"),
 
                 "payment_method": pd.Series(payment_method, name="payment_method", dtype="str"),
                 "date": pd.Series(date, name="date", dtype="str"),
-                "amount": pd.Series(amount, name="customer_id_FK", dtype="float").round(),
+                "amount": pd.Series(amount, name="customer_id_fk", dtype="float").round(),
             }
         )
-        PaymentDf.set_index('payment_id_PK', inplace=True)
+        PaymentDf.set_index('payment_id_pk', inplace=True)
         return PaymentDf

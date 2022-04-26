@@ -10,11 +10,11 @@ class TableProductBase():
     max_count_costed_charge: int= 1000
     max_count_costed_payment: int = 24000 
     AIRFLOW_HOME = getenv('AIRFLOW_HOME', '/opt/airflow')
-    to_csv = AIRFLOW_HOME + "/dags/data/data_source/"
+    to_csv = AIRFLOW_HOME + "/csv/"
 
     @staticmethod
     def get_df() -> pd.DataFrame:
-        path_Product = f"{TableProductBase.AIRFLOW_HOME}/dags/data/data_source/Product.csv"
+        path_Product = f"{TableProductBase.AIRFLOW_HOME}/csv/Product.csv"
         ProductDf = pd.read_csv(path_Product, delimiter=',')
         ProductDf.set_index('product_id', inplace=True) 
         return ProductDf

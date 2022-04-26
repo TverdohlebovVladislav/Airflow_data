@@ -7,11 +7,19 @@ from airflow.operators.python import PythonOperator
 from os import getenv
 from sqlalchemy import create_engine
 from datetime import datetime
-import os.path
-
+import sys
 import psycopg2
 from psycopg2 import OperationalError
-import data.data_generate_scripts as gen_scr
+import os.path
+from os.path import dirname, abspath
+d = dirname(dirname(abspath(__file__)))
+import data_generate_scripts as dg_scr
+
+# f = open('logs.txt', 'w')
+# sys.path.append(d)
+# f.write(str(sys.path))
+# f.close()
+
 
 
 DAG_DEFAULT_ARGS = {'start_date': datetime(2020, 1, 1), 'depends_on_past': False}
@@ -112,6 +120,8 @@ def create_db_for_clean_data(conn_id: str = None) -> None:
     # Create tables if they are not exists for first launch
     create_tables = """
 
+        SET datestyle = dmy;
+
         CREATE TABLE IF NOT EXISTS product (
             product_id SERIAL PRIMARY KEY,
             product_name TEXT NOT NULL, 
@@ -132,7 +142,7 @@ def create_db_for_clean_data(conn_id: str = None) -> None:
             last_name TEXT NOT NULL,
             gender TEXT NOT NULL,
             language TEXT, 
-            agree_for_promo BOOLEAN,
+            agree_for_promo INTEGER,
             autopay_card TEXT,
             customer_category TEXT, 
             status TEXT,
@@ -144,17 +154,17 @@ def create_db_for_clean_data(conn_id: str = None) -> None:
             msisdn TEXT
         );
         CREATE TABLE IF NOT EXISTS product_instance (
-            product_instance_id_PK SERIAL PRIMARY KEY,
-            customer_id_FK INTEGER REFERENCES customer(customer_id) NOT NULL, 
-            product_id_FK INTEGER REFERENCES product(product_id) NOT NULL,
+            product_instance_id_pk SERIAL PRIMARY KEY,
+            customer_id_fk INTEGER REFERENCES customer(customer_id) NOT NULL, 
+            product_id_fk INTEGER REFERENCES product(product_id) NOT NULL,
             activation_date DATE,
             termination_date DATE, 
             status INTEGER,
             distribution_channel TEXT
         );
         CREATE TABLE IF NOT EXISTS costed_event (
-            event_id_PK SERIAL PRIMARY KEY,
-            product_instance_id_FK INTEGER REFERENCES product_instance(product_instance_id_PK) NOT NULL, 
+            event_id_pk SERIAL PRIMARY KEY,
+            product_instance_id_fk INTEGER REFERENCES product_instance(product_instance_id_pk) NOT NULL, 
             calling_msisdn INTEGER,
             called_msisdn INTEGER,
             date TIMESTAMP, 
@@ -164,19 +174,19 @@ def create_db_for_clean_data(conn_id: str = None) -> None:
             number_of_data INTEGER,
             event_type TEXT,
             direction TEXT, 
-            roaming BOOLEAN
+            roaming INTEGER
         );
         CREATE TABLE IF NOT EXISTS charge (
-            charge_id_PK SERIAL PRIMARY KEY,
-            product_instance_id_FK INTEGER REFERENCES product_instance(product_instance_id_PK) NOT NULL, 
+            charge_id_pk SERIAL PRIMARY KEY,
+            product_instance_id_fk INTEGER REFERENCES product_instance(product_instance_id_pk) NOT NULL, 
             charge_counter INTEGER,
             date TIMESTAMP,
             cost DECIMAL, 
             event_type BOOLEAN
         );
         CREATE TABLE IF NOT EXISTS payment (
-            payment_id_PK SERIAL PRIMARY KEY,
-            customer_id_FK INTEGER REFERENCES customer(customer_id) NOT NULL, 
+            payment_id_pk SERIAL PRIMARY KEY,
+            customer_id_fk INTEGER REFERENCES customer(customer_id) NOT NULL, 
             payment_method TEXT,
             date TIMESTAMP,
             amount DECIMAL
@@ -185,55 +195,55 @@ def create_db_for_clean_data(conn_id: str = None) -> None:
     execute_query(connetction_clean, create_tables)
 
 
-def add_data_to_clean_db(conn_id: str = None) -> None:
+def create_csv_files():
     """
-    Add demo data to DB if not exists
+    Create CSV for the first upload if not exists
     """
-    f = open('log.txt', 'w')
-    # Create csv if it not exists
-    path_to_files = f"{AIRFLOW_HOME}/dags/data/data_source/"
-    # data_soure = 'data/data_source/'
+    path_to_files = f"{AIRFLOW_HOME}/csv/"
     check = True
     file_names = [
-        'Charge.csv', 
-        'CostedEvent.csv',
-        'Customer.csv',
-        'Payment.csv',
         'Product.csv',
+        'Customer.csv',
         'ProductInstance.csv'
+        'CostedEvent.csv',
+        'Charge.csv', 
+        'Payment.csv',    
     ]
     for i in range(len(file_names)):
         if not os.path.exists(path_to_files + file_names[i]):
             check = False
             break
-    
-    f.write(str(check))
-    if check:  
-        # conn_object = BaseHook.get_connection(conn_id or DEFAULT_POSTGRES_CONN_ID)
-        # jdbc_url = f"postgresql://{conn_object.login}:{conn_object.password}@" \
-        #        f"{conn_object.host}:{conn_object.port}/clean_data"
+    if not check:
+        dg_scr.castomer_const_find()
+        dg_scr.ProductInstance().save_to_csv() 
+        dg_scr.Customer().save_to_csv()
+        dg_scr.CostedEvent().save_to_csv() 
+        dg_scr.Charge().save_to_csv()
+        dg_scr.Payment().save_to_csv()
 
-        f.write(str(check_table_for_emptiness('product')))
-        # pd.read_csv
-        if not check_table_for_emptiness('product'):
-            load_csv_pandas(path_to_files + 'Product.csv', 'product', 'public')
-        if not check_table_for_emptiness('customer'):
-            load_csv_pandas(path_to_files + 'Customer.csv', 'customer', 'public')
-        if not check_table_for_emptiness('product_instance'):
-            load_csv_pandas(path_to_files + 'ProductInstance.csv', 'product_instance', 'public')
-        if not check_table_for_emptiness('costed_event'):
-            load_csv_pandas(path_to_files + 'CostedEvent.csv', 'costed_event', 'public')
-        if not check_table_for_emptiness('charge'):
-            load_csv_pandas(path_to_files + 'Charge.csv', 'charge', 'public')
-        if not check_table_for_emptiness('payment'):
-            load_csv_pandas(path_to_files + 'Payment.csv', 'payment', 'public')
+
+def add_data_to_clean_db(conn_id: str = None) -> None:
+    """
+    Add demo data to DB if not exists
+    """
+    f = open('log.txt', 'w')
+
+    # Create csv if it not exists
+    path_to_files = f"{AIRFLOW_HOME}/csv/"
+
+    if not check_table_for_emptiness('product'):
+        load_csv_pandas(path_to_files + 'Product.csv', 'product', 'public')
+    if not check_table_for_emptiness('customer'):
+        load_csv_pandas(path_to_files + 'Customer.csv', 'customer', 'public')
+    if not check_table_for_emptiness('product_instance'):
+        load_csv_pandas(path_to_files + 'ProductInstance.csv', 'product_instance', 'public')
+    if not check_table_for_emptiness('costed_event'):
+        load_csv_pandas(path_to_files + 'CostedEvent.csv', 'costed_event', 'public')
+    if not check_table_for_emptiness('charge'):
+        load_csv_pandas(path_to_files + 'Charge.csv', 'charge', 'public')
+    if not check_table_for_emptiness('payment'):
+        load_csv_pandas(path_to_files + 'Payment.csv', 'payment', 'public')
         
-        pass
-    else: 
-
-        # ДОДЕЛАТЬ АВТОМАТИЧЕСКУЮ ГЕНЕРАЦИЮ
-        # generate_data()
-        pass
     f.close()
     
 
@@ -276,6 +286,12 @@ with DAG(dag_id=DAG_ID,
         }
     )
 
+    create_csv_if_not_exists = PythonOperator(
+        dag=dag,
+        task_id=f"{DAG_ID}.create_csv_if_not_exists",
+        python_callable=create_csv_files,
+    )
+
     add_data_to_tables_if_not_exist = PythonOperator(
         dag=dag,
         task_id=f"{DAG_ID}.add_data_to_tables_if_not_exist",
@@ -285,7 +301,7 @@ with DAG(dag_id=DAG_ID,
         }
     )
 
-    start_task >> create_tables_func >> add_data_to_tables_if_not_exist >> end_task
+    start_task >> create_tables_func >> create_csv_if_not_exists >> add_data_to_tables_if_not_exist >> end_task
 
 
 

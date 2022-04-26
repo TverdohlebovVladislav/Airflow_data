@@ -17,7 +17,7 @@ class ProductInstance(TableProductBase):
         max_count_product = TableProductBase.get_max_count_product()
         product_data = TableProductBase.get_df()
 
-        cust = pd.read_csv(TableProductBase.AIRFLOW_HOME + "/dags/data/data_source/customer_const.csv")
+        cust = pd.read_csv(TableProductBase.AIRFLOW_HOME + "/csv/customer_const.csv")
         cust.set_index('customer_id', inplace=True)
 
 
@@ -47,8 +47,8 @@ class ProductInstance(TableProductBase):
         base_of_date = []   
         termin_date = [] 
         #generate some fields
-        product_instance_id_PK: list  = [i for i in range(1, self.max_count_product_inst+1)]
-        customer_id_FK: list  = np.random.randint(1, self.max_count_customer, size=self.max_count_product_inst)
+        product_instance_id_pk: list  = [i for i in range(1, self.max_count_product_inst+1)]
+        customer_id_fk: list  = np.random.randint(1, self.max_count_customer, size=self.max_count_product_inst)
 
 
         #create list with index ​​for tariffs that cannot be connected twice at the same time at the customer
@@ -57,16 +57,16 @@ class ProductInstance(TableProductBase):
         #create list with index ​​for tariffs that can be connected an unlimited number of times at the same time at the bustomer
         many = list(product_data[product_data.product_type == 'addon'].index)
 
-        product_id_FK : list = []
+        product_id_fk : list = []
 
-        #generate base of date , termination date , product_id_FK
+        #generate base of date , termination date , product_id_fk
         #taking into account the dependencies of finding customer_id in the ban list
         #also taking into account dependencies on customer_id status
         #and consistency of date generation depending on the next values ​​for each customer_id
-        for i in customer_id_FK:
+        for i in customer_id_fk:
             a = np.random.randint(1, max_count_product)
             if i not in ban['tariff']['cust_id']:
-                product_id_FK.append(np.random.choice(product_only_once['tariff']))
+                product_id_fk.append(np.random.choice(product_only_once['tariff']))
                 base_of_date.append(rand_date(start_dt, end_dt))
                 termin_date.append(np.NaN)   
                 ban.setdefault('tariff').setdefault('cust_id').append(i) 
@@ -77,20 +77,20 @@ class ProductInstance(TableProductBase):
                     t1 = rand_date(t - relativedelta(years=2), t - relativedelta(months=2))
                     t2 = t1 + relativedelta(months=1)
                     t3 = t1 + relativedelta(months=2) 
-                    product_id_FK.append(a)
+                    product_id_fk.append(a)
                     base_of_date.append(t1)
                     termin_date.append(np.random.choice([t2,t3],p = [0.57,0.43]))      
                 else:
                     t1 = rand_date(start_dt, end_dt - relativedelta(months=2))
                     t2 = t1 + relativedelta(months=1)
                     t3 = t1 + relativedelta(months=2)   
-                    product_id_FK.append(a)
+                    product_id_fk.append(a)
                     base_of_date.append(t1)
                     termin_date.append(np.random.choice([np.NaN,t2,t3],p = [0.35,0.45,0.2])) 
             else:    
                 for key in ban:
                     if i not in ban[key]['cust_id'] and a in product_only_once[key]:
-                        product_id_FK.append(a)
+                        product_id_fk.append(a)
                         base_of_date.append(rand_date(start_dt, end_dt))        
                         ban.setdefault(key).setdefault('cust_id').append(i) 
                         ban.setdefault(key).setdefault('date').append(base_of_date[-1]) 
@@ -101,7 +101,7 @@ class ProductInstance(TableProductBase):
                         t1 = rand_date(start_dt, t)
                         t2 = rand_date(start_dt, t)
                         if (t1>t2): t1,t2 = t2,t1 
-                        product_id_FK.append(a)
+                        product_id_fk.append(a)
                         ban[key]['date'][ban[key]['cust_id'].index(i)] = t1
                         base_of_date.append(t1)
                         termin_date.append(t2)       
@@ -116,7 +116,7 @@ class ProductInstance(TableProductBase):
         #get distribution channel
         distirb_chanel = []
         d1 = du_parse(str(DT.strptime('01.01.2022', '%d.%m.%Y') ))
-        for j in customer_id_FK:
+        for j in customer_id_fk:
             d2 = du_parse(str(cust_birth[j]))
             delta = relativedelta(d1, d2).years
             if cust['autopay_card'][j] == 'Yes': pay = ['Web site','Mobile app','Physical shop','Call center']
@@ -134,9 +134,9 @@ class ProductInstance(TableProductBase):
 
         Product_instanceDf = pd.DataFrame(
             {
-                "product_instance_id_PK": pd.Series(product_instance_id_PK, name="product_instance_id_PK", dtype="int"),
-                "customer_id_FK": pd.Series(customer_id_FK, name="customer_id_FK", dtype="int"),
-                "product_id_FK": pd.Series(product_id_FK, name="product_id_FK", dtype="int"),
+                "product_instance_id_pk": pd.Series(product_instance_id_pk, name="product_instance_id_pk", dtype="int"),
+                "customer_id_fk": pd.Series(customer_id_fk, name="customer_id_fk", dtype="int"),
+                "product_id_fk": pd.Series(product_id_fk, name="product_id_fk", dtype="int"),
                 "activation_date":  pd.Series(base_of_date,name = "activation_date", dtype = "str"),
                 "termination_date": pd.Series(termin_date,name = "activation_date", dtype = "str"),
                 "status": pd.Series(status,name = "status", dtype = "str"),
@@ -145,7 +145,7 @@ class ProductInstance(TableProductBase):
         )
         Product_instanceDf['activation_date'] = pd.to_datetime(Product_instanceDf['activation_date'], format='%Y-%m-%dT')
         Product_instanceDf['termination_date'] = pd.to_datetime(Product_instanceDf['termination_date'], format='%Y-%m-%dT')
-        Product_instanceDf.set_index('product_instance_id_PK', inplace=True)
+        Product_instanceDf.set_index('product_instance_id_pk', inplace=True)
         return Product_instanceDf
 #a = ProductInstance()
 #a.save_csv
