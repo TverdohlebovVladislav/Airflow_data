@@ -5,11 +5,13 @@ from .TableProductBase import TableProductBase
 
 class Charge(TableProductBase):
 
-    def __init__(self):
+    def __init__(self, counter: int = 1):
+        super().__init__(counter)
         self.dataFrame = self.get_df()
 
     def get_df(self) -> pd.DataFrame:
-        charge_id_pk: list  = [i for i in range(1, self.max_count_costed_charge)] 
+        count__to_start = self.id_counter
+        charge_id_pk: list  = [i for i in range(count__to_start, self.max_count_costed_charge + count__to_start - 1)] 
         product_instance_id_fk_charge: list   = np.random.randint(1, self.max_count_product_inst, size=self.max_count_costed_charge - 1)
         
         # ––––––––––––––––– charge_counter ––––––––––––––––––

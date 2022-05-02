@@ -8,7 +8,8 @@ from .TableProductBase import TableProductBase
 
 class Payment(TableProductBase):
 
-    def __init__(self):
+    def __init__(self, counter: int = 1):
+        super().__init__(counter)
         self.dataFrame = self.get_df()
 
     def get_df(self) -> pd.DataFrame:
@@ -17,7 +18,8 @@ class Payment(TableProductBase):
 
         # ---
         # Create dataframe - Payment
-        payment_id_pk: list  = [i for i in range(1, self.max_count_costed_payment)]
+        count__to_start = self.id_counter
+        payment_id_pk: list  = [i for i in range(count__to_start, self.max_count_costed_payment + count__to_start - 1)]
         customer_id_fk_in_payment: list = np.random.randint(1, self.max_count_customer, size=self.max_count_costed_payment - 1)
 
         # Payment method

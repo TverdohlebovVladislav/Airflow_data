@@ -15,6 +15,8 @@ from os.path import dirname, abspath
 d = dirname(dirname(abspath(__file__)))
 import data_generate_scripts as dg_scr
 
+import oauth2client
+
 # f = open('logs.txt', 'w')
 # sys.path.append(d)
 # f.write(str(sys.path))
@@ -247,20 +249,43 @@ def add_data_to_clean_db(conn_id: str = None) -> None:
     f.close()
     
 
+def generate_new_data(conn_id: str = None) -> None:
+    """
+    Generate new data automaticly
+    """
+    # Set quantoty of data to autogenerate
+    dg_scr.TableProductBase.max_count_costed_payment = 30
+    dg_scr.TableProductBase.max_count_costed_charge = 10
+    dg_scr.TableProductBase.max_count_costed_event = 50
 
+    # Find max count to start
+    conn_object = BaseHook.get_connection(conn_id or DEFAULT_POSTGRES_CONN_ID)
+    jdbc_url = f"postgresql://{conn_object.login}:{conn_object.password}@" \
+               f"{conn_object.host}:{conn_object.port}/{conn_object.schema}"
+    engine = create_engine(jdbc_url)
+    counted_rows = pd.read_sql(
+        """
+        SELECT COUNT(*) as count from public.payment
+        UNION ALL SELECT COUNT(*) as count from public.charge
+        UNION ALL SELECT COUNT(*) as count from public.costed_event
+        """,
+        engine
+    )
+    counted_rows_list = list(counted_rows['count'])
 
-    # Add data from csv 
+    # Generate data to upload
+    pt = dg_scr.Payment(counted_rows_list[0] + 1)
+    ch = dg_scr.Charge(counted_rows_list[1] + 1)
+    ce = dg_scr.CostedEvent(counted_rows_list[2] + 1) 
     
+    # Send data to the serv 
+    pt.get_df().to_sql('payment', engine, schema='public', if_exists="append")
+    ch.get_df().to_sql('charge', engine, schema='public', if_exists="append")
+    ce.get_df().to_sql('costed_event', engine, schema='public', if_exists="append")
+
     
 
-
-
-# def create_tables():
-#     """
-#     Create tables for DB if it is not exist
-#     """
-#     pass
-
+    # print(ce.get_df())
 
 with DAG(dag_id=DAG_ID,
          description='Dag to transfer data from csv to postgres [version 1.0]',
@@ -301,7 +326,16 @@ with DAG(dag_id=DAG_ID,
         }
     )
 
-    start_task >> create_tables_func >> create_csv_if_not_exists >> add_data_to_tables_if_not_exist >> end_task
+    add_new_data = PythonOperator(
+        dag=dag,
+        task_id=f"{DAG_ID}.add_new_data_every_hour",
+        python_callable=generate_new_data,
+        op_kwargs={
+            "conn_id": "clean_data"
+        }
+    )
+
+    start_task >> create_tables_func >> create_csv_if_not_exists >> add_data_to_tables_if_not_exist >> add_new_data >> end_task
 
 
 

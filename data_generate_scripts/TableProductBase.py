@@ -11,6 +11,10 @@ class TableProductBase():
     max_count_costed_payment: int = 24000 
     AIRFLOW_HOME = getenv('AIRFLOW_HOME', '/opt/airflow')
     to_csv = AIRFLOW_HOME + "/csv/"
+    to_csv_temp = AIRFLOW_HOME + "/csv/temp/"
+
+    def __init__(self, counter: int = 1):
+        self.id_counter = counter
 
     @staticmethod
     def get_df() -> pd.DataFrame:
@@ -23,18 +27,23 @@ class TableProductBase():
     def get_max_count_product() -> int:
         return TableProductBase.get_df().shape[0]
     
-    def save_to_csv(self, path: str = to_csv):
+    def save_to_csv(self, path: str = to_csv) -> None:
         if hasattr(self, "dataFrame"):
+            print(path)
             self.dataFrame.to_csv(path + self.__class__.__name__ + ".csv") 
             print("Файл " + self.__class__.__name__ + ".csv" + " сохранен!")
         else:
             print("Ошибка сохранения файла!")
 
-    def add_data_to_csv(self, path: str = to_csv):
-        if hasattr(self, "dataFrame") and os.path.exists(self.__class__.__name__ + ".csv"):
-            self.to_csv(path + self.__class__.__name__ + ".csv", mode='a')
-            print("Файл " + self.__class__.__name__ + ".csv" + " обновлен!")
+    def add_data_to_csv(self, path: str = to_csv_temp) -> None:
+
+        if not os.path.exists(path):
+                os.mkdir(path)
+
+        if hasattr(self, "dataFrame"):
+            self.dataFrame.to_csv(path + self.__class__.__name__ + ".csv") 
+            print("Файл " + self.__class__.__name__ + ".csv" + " сохранен!")
         else:
-            self.save_to_csv()
+            print("Ошибка сохранения файла!")
 
 TableProductBase.max_count_product = TableProductBase.get_max_count_product()

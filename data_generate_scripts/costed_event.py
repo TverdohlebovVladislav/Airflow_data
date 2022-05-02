@@ -8,7 +8,8 @@ from .TableProductBase import TableProductBase
 
 class CostedEvent(TableProductBase):
 
-    def __init__(self):
+    def __init__(self, counter: int = 1):
+        super().__init__(counter)
         self.dataFrame = self.get_df()
 
     def get_df(self) -> pd.DataFrame:
@@ -33,11 +34,13 @@ class CostedEvent(TableProductBase):
         with open(TableProductBase.AIRFLOW_HOME + "/csv/ProductInstance.csv") as ProductInstance:
             pr_insDF = pd.read_csv(ProductInstance, delimiter=',')
 
+        count__to_start = self.id_counter
+
         # ---
         # Generation columns for dataset 
 
         # ID
-        event_id_pk: list  = [i for i in range(1, self.max_count_costed_event)] 
+        event_id_pk: list  = [i for i in range(count__to_start, self.max_count_costed_event + count__to_start - 1)] 
 
         # From
         calling_msisdn: list = np.random.randint(1, self.max_count_customer, size=self.max_count_costed_event - 1)
