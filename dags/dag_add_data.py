@@ -17,10 +17,6 @@ import data_generate_scripts as dg_scr
 
 import oauth2client
 
-# f = open('logs.txt', 'w')
-# sys.path.append(d)
-# f.write(str(sys.path))
-# f.close()
 
 
 
@@ -228,7 +224,6 @@ def add_data_to_clean_db(conn_id: str = None) -> None:
     """
     Add demo data to DB if not exists
     """
-    f = open('log.txt', 'w')
 
     # Create csv if it not exists
     path_to_files = f"{AIRFLOW_HOME}/csv/"
@@ -246,7 +241,6 @@ def add_data_to_clean_db(conn_id: str = None) -> None:
     if not check_table_for_emptiness('payment'):
         load_csv_pandas(path_to_files + 'Payment.csv', 'payment', 'public')
         
-    f.close()
     
 
 def generate_new_data(conn_id: str = None) -> None:
@@ -258,7 +252,7 @@ def generate_new_data(conn_id: str = None) -> None:
     dg_scr.TableProductBase.max_count_costed_charge = 10
     dg_scr.TableProductBase.max_count_costed_event = 50
 
-    # Find max count to start
+    # Find max count to start FROM DB
     conn_object = BaseHook.get_connection(conn_id or DEFAULT_POSTGRES_CONN_ID)
     jdbc_url = f"postgresql://{conn_object.login}:{conn_object.password}@" \
                f"{conn_object.host}:{conn_object.port}/{conn_object.schema}"
@@ -277,15 +271,12 @@ def generate_new_data(conn_id: str = None) -> None:
     pt = dg_scr.Payment(counted_rows_list[0] + 1)
     ch = dg_scr.Charge(counted_rows_list[1] + 1)
     ce = dg_scr.CostedEvent(counted_rows_list[2] + 1) 
-    
+
     # Send data to the serv 
     pt.get_df().to_sql('payment', engine, schema='public', if_exists="append")
     ch.get_df().to_sql('charge', engine, schema='public', if_exists="append")
     ce.get_df().to_sql('costed_event', engine, schema='public', if_exists="append")
 
-    
-
-    # print(ce.get_df())
 
 with DAG(dag_id=DAG_ID,
          description='Dag to transfer data from csv to postgres [version 1.0]',
@@ -336,10 +327,3 @@ with DAG(dag_id=DAG_ID,
     )
 
     start_task >> create_tables_func >> create_csv_if_not_exists >> add_data_to_tables_if_not_exist >> add_new_data >> end_task
-
-
-
-
-# f.write(df.head)
-# f.write(file_path)
-# f.write('sdsdfnsdjklfnsjdnfsdjfnksdjf')

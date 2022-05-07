@@ -17,3 +17,5 @@ rsa==4.0
 six==1.12.0
 uritemplate==3.0.0
 psycopg2-binary
+sqlalchemy_utils
+tqdm
