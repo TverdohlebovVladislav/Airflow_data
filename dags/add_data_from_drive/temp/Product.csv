@@ -1,0 +1,23 @@
+product_id,product_name,product_category,product_type,recurrent,cost_for_call,cost_for_sms,cost_for_data,allowance_sms,allowance_voice,allowance_data,Price
+1,Unlimited 25 5G,Unlimited,Tariff,regularly,0,0,0,base plan,base plan,base plan,85
+2,Unlimited 40 5G+,Unlimited,Tariff,regularly,0,0,0,base plan,base plan,base plan,90
+3,Unlimited 50 5G+,Unlimited,Tariff,regularly,0,0,0,base plan,base plan,base plan,100
+4,Voice 30,Talk & Text,Tariff,regularly,0,0,40,base plan,base plan,add-on,30
+5,Base plan 4G 30,Business,Tariff,regularly,,,75,,,add-on,35
+6,Base plan 20,Business,Tariff,regularly,,,90,,,add-on,35
+7,Base plan 30,Business,Tariff,regularly,,,110,,,add-on,50
+8,Free YouTube Music,Music,addon,regularly,,,,,,,8
+9,Free YouTube,Video,addon,regularly,,,,,,,8
+10,Free TikTok,Video,addon,regularly,,,,,,,8
+11,Spotify Individual,Music,addon,regularly,,,,,,,10
+12,Netflix Standard,Video,addon,regularly,,,,,,,15
+13,Add Internet 10Gb,data,addon,just once,,,0.05,,,add-on,50
+14,Add Calls 100,addon,addon,just once,0.3,,,,add-on,,30
+15,Add SMS 100,addon,addon,just once,,0.02,,add-on,,,20
+16,Random ring tone,Music,addon,just once,,,,,,,2
+17,Ring tone 1,Music,addon,just once,,,,,,,5
+18,Ring tone 2,Music,addon,just once,,,,,,,10
+19,10 gigabytes,data,addon,just once,,,,,,add-on,30
+20,20 gigabytes,data,addon,just once,,,,,,add-on,50
+21,30 gigabytes,data,addon,just once,,,,,,add-on,65
+22,60 gigabytes,data,addon,just once,,,,,,add-on,65

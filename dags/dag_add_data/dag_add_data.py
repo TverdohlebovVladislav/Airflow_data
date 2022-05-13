@@ -18,8 +18,6 @@ import data_generate_scripts as dg_scr
 import oauth2client
 
 
-
-
 DAG_DEFAULT_ARGS = {'start_date': datetime(2020, 1, 1), 'depends_on_past': False}
 DEFAULT_POSTGRES_CONN_ID = "clean_data"
 AIRFLOW_HOME = getenv('AIRFLOW_HOME', '/opt/airflow')

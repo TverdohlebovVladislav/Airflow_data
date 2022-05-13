@@ -17,24 +17,50 @@ from airflow.hooks.base import BaseHook
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
 import httplib2
+from googleapiclient.errors import HttpError
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
+
+
+from pyspark.sql import SparkSession
 
 DAG_DEFAULT_ARGS = {'start_date': datetime(2020, 1, 1), 'depends_on_past': False}
-DEFAULT_POSTGRES_CONN_ID = "postgres_default"
 AIRFLOW_HOME = getenv('AIRFLOW_HOME', '/opt/airflow')
 CREDENTIALS_PATH = getenv('AIRFLOW_HOME', '/opt/airflow') + '/dags/add_data_from_drive/credentials.json'
+DOWNLOAD_DATA = getenv('AIRFLOW_HOME', '/opt/airflow') + '/dags/add_data_from_drive/temp/'
 
 DAG_ID = "ADD_DATA_FROM_DRIVE"
 schedule = "@hourly"
 
-# If modifying these scopes, delete the file token.pickle.
+# MODIFICATE LATER !
+DEFAULT_POSTGRES_CONN_ID = "clean_data"
+conn_object = BaseHook.get_connection(DEFAULT_POSTGRES_CONN_ID)
+CONNECT_DB_DATA = [
+    'airflow',
+    'airflow',
+    'postgres',
+    '5432',
+    'clean_data'
+]
+postgres_driver_jar = "/usr/local/spark/resources/postgresql-9.4.1207.jar"
+# MODIFICATE LATER !
+
+
 SCOPES = [
     'https://www.googleapis.com/auth/drive.metadata',
     'https://www.googleapis.com/auth/drive',
-    'https://www.googleapis.com/auth/drive.file'
+    'https://www.googleapis.com/auth/drive.file',
+    'https://www.googleapis.com/auth/spreadsheets.readonly'
 ]
 
 
 def get_gdrive_service():
+    """
+    Get connetction to interactions
+    """
     credentials = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_PATH, SCOPES)
     httpAuth = credentials.authorize(httplib2.Http())
     service = apiclient.discovery.build('drive', 'v3', http=httpAuth)
@@ -42,6 +68,9 @@ def get_gdrive_service():
 
 
 def search(service, query):
+    """
+    Search files in gdrive
+    """
     # search for the file
     result = []
     page_token = None
@@ -61,6 +90,11 @@ def search(service, query):
 
 
 def download_file_from_google_drive(id, destination):
+    """
+    Download data from drive
+    id - is an id of gdrive document - gives from search function 
+    destination - is a path where will save file in local storage
+    """
     def get_confirm_token(response):
         for key, value in response.cookies.items():
             if key.startswith('download_warning'):
@@ -112,11 +146,35 @@ def download(filename):
     # make it shareable
     service.permissions().create(body={"role": "reader", "type": "anyone"}, fileId=file_id).execute()
     # download file
-    download_file_from_google_drive(file_id, filename)
+    try:
+        download_file_from_google_drive(file_id, DOWNLOAD_DATA + filename)
+    except HttpError as err:
+        print(err)
     
 
-def downlaod_data_to_raw():
-    download('Product.csv')
+def update_db_data(schema: str = 'public', table_name: str = 'Product'):
+    """
+    Updating the database, based on files received from Google drive
+    """
+    # url = f"postgresql://{CONNECT_DB_DATA[0]}:{CONNECT_DB_DATA[1]}@{CONNECT_DB_DATA[2]}:{CONNECT_DB_DATA[3]}/{db}"
+    # engine = create_engine(url, pool_size=50, echo=False)
+    # session = sessionmaker(bind=engine)()
+
+    spark = SparkSession \
+        .builder \
+        .appName("Load data from gdrive to DB") \
+        .getOrCreate()
+    df = spark.read.csv(DOWNLOAD_DATA)
+    df.write \
+        .format("jdbc") \
+        .option("url", "jdbc:postgresql:dbserver") \
+        .option("dbtable", f"public.{table_name}") \
+        .option("user", "airflow") \
+        .option("password", "airflow") \
+        .save()
+
+    pass
+
 
 
 with DAG(dag_id=DAG_ID,
@@ -130,14 +188,70 @@ with DAG(dag_id=DAG_ID,
     start_task = DummyOperator(task_id='START', dag=dag)
     end_task = DummyOperator(task_id='END', dag=dag)
 
+    next_t = DummyOperator(task_id='NEXT')
 
-    add_data_to_raw = PythonOperator(
+
+    add_data_local_customer = PythonOperator(
         dag=dag,
-        task_id=f"{DAG_ID}.create_tables_if_not_exists",
-        python_callable=downlaod_data_to_raw
-        # op_kwargs={
-        #     "conn_id": "raw_postgres"
-        # }
+        task_id=f"{DAG_ID}.upload_data_from_drive_CUSTOMER",
+        python_callable=download,
+        op_kwargs={
+            "filename": "Customer.csv"
+        }
     )
 
-    start_task >> add_data_to_raw >> end_task
+    add_data_local_product = PythonOperator(
+        dag=dag,
+        task_id=f"{DAG_ID}.upload_data_from_drive_PRODUCT",
+        python_callable=download,
+        op_kwargs={
+            "filename": "Product.csv"
+        }
+    )
+
+    # -------
+
+    add_data_db_product = PythonOperator(
+        dag=dag,
+        task_id=f"{DAG_ID}.add_data_db_PRODUCT",
+        python_callable=update_db_data,
+        op_kwargs={
+            "table_name": "Product"
+        }
+    )
+
+    add_data_db_customer = PythonOperator(
+        dag=dag,
+        task_id=f"{DAG_ID}.add_data_db_CUSTOMER",
+        python_callable=update_db_data,
+        op_kwargs={
+            "table_name": "Customer"
+        }
+    )
+
+    # add_data_db_customer = SparkSubmitOperator(dag=dag,
+    #         task_id=f"{DAG_ID}.add_data_db_CUSTOMER",
+    #         application=f"/usr/local/spark/core/raw_to_datamart.py",
+    #         application_args=build_spark_args(
+    #             **{
+    #                 ARGS_APP_NAME: customer_totals_datamart_task_id,
+    #                 ARGS_TABLE_NAME: datamart_table,
+    #                 ARGS_JDBC_URL: "{{ get_conn() }}",
+    #                 ARGS_QUERY: "{{ get_query('"+query_path+"') }}"
+    #             }
+    #         ),
+    #         conf=SPARK_CONF,
+    #         jars=postgres_driver_jar)
+
+    start_task >> \
+    [add_data_local_customer, add_data_local_product] >> \
+    add_data_db_product >> \
+    add_data_db_customer >> \
+    end_task
+
+
+    # start_task >> \
+    # [add_data_local_customer, add_data_local_product] >> \
+    # next_t >> \ 
+    # [add_data_db_product, add_data_db_customer] >> \
+    # end_task
