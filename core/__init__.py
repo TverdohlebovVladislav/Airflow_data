@@ -15,6 +15,7 @@ from core.connections import (
 )
 from core.to_raw import FileToRaw
 from core.create_datamart import RawToDatamart
+from core.get_sql_to_create_tables import get_sql
 
 
 __all__ = [
@@ -32,5 +33,6 @@ __all__ = [
     'build_spark_args',
     'custom_macros_dict',
     'FileToRaw',
-    'RawToDatamart'
+    'RawToDatamart',
+    'get_sql'
 ]

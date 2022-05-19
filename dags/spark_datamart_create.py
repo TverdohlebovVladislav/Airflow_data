@@ -25,8 +25,6 @@ CONNECT_DB_DATA = [
     'clean_data'
 ]
 
-
-
 def get_sql_to_create_datamart(schema_from: str = 'raw'):
     '''
     Create datamart from RAW SQL
@@ -115,7 +113,7 @@ with DAG(dag_id=DAG_ID,
                 core.ARGS_JDBC_URL: "{{ get_conn() }}"
             }
         ),
-        conf=core.SPARK_CONF,
+        # conf=core.SPARK_CONF,
         jars=postgres_driver_jar
     )
 
@@ -133,7 +131,7 @@ with DAG(dag_id=DAG_ID,
                 core.ARGS_JDBC_URL: "{{ get_conn() }}"
             }
         ),
-        conf=core.SPARK_CONF,
+        # conf=core.SPARK_CONF,
         jars=postgres_driver_jar
     )
 
@@ -151,7 +149,7 @@ with DAG(dag_id=DAG_ID,
                 core.ARGS_JDBC_URL: "{{ get_conn() }}"
             }
         ),
-        conf=core.SPARK_CONF,
+        # conf=core.SPARK_CONF,
         jars=postgres_driver_jar
     )
 
@@ -169,7 +167,7 @@ with DAG(dag_id=DAG_ID,
                 core.ARGS_JDBC_URL: "{{ get_conn() }}"
             }
         ),
-        conf=core.SPARK_CONF,
+        # conf=core.SPARK_CONF,
         jars=postgres_driver_jar
     )
 
@@ -187,7 +185,7 @@ with DAG(dag_id=DAG_ID,
                 core.ARGS_JDBC_URL: "{{ get_conn() }}"
             }
         ),
-        conf=core.SPARK_CONF,
+        # conf=core.SPARK_CONF,
         jars=postgres_driver_jar
     )
 
@@ -209,7 +207,7 @@ with DAG(dag_id=DAG_ID,
                 core.ARGS_QUERY: "{{ get_query('"+query_path+"') }}"
             }
         ),
-        conf=core.SPARK_CONF,
+        # conf=core.SPARK_CONF,
         jars=postgres_driver_jar
     )
 

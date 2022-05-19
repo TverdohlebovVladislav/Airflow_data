@@ -12,8 +12,10 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy_utils import database_exists, create_database
 # from local_settings import postgresql as settings
 from sqlalchemy.schema import CreateSchema
+import psycopg2
+import core
 
-
+import logging
 
 DAG_DEFAULT_ARGS = {'start_date': datetime(2020, 1, 1), 'depends_on_past': False}
 DEFAULT_POSTGRES_CONN_ID = "clean_data"
@@ -27,7 +29,7 @@ CONNECT_DB_DATA = [
     'clean_data'
 ]
 
-DAG_ID = "СREATE_DATAMART"
+DAG_ID = "СREATE_DATAMART_FROM_RAW"
 schedule = "@weekly"
 
 
@@ -38,43 +40,50 @@ def create_engine_session(user, passwd, host, port, db):
     url = f"postgresql://{user}:{passwd}@{host}:{port}/{db}"
     if not database_exists(url):
         create_database(url)
-    engine = create_engine(url, pool_size=50, echo=False)
+    engine = create_engine(url)
     session = sessionmaker(bind=engine)()
     return engine, session
 
 
-def load_data_to_raw() -> None:
+def load_data_to_raw(table_name: str) -> None:
     '''
     Load data from clean_data DB to RAW
-
     table_name: str, add_mark_date_of_upload: boolean = False
     '''
     engine, conn = create_engine_session(*CONNECT_DB_DATA)
-    statement = 'CREATE SCHEMA IF NOT EXISTS RAW'
+    statement = 'CREATE SCHEMA IF NOT EXISTS RAW; \n' + core.get_sql('raw')
     conn.execute(statement)
-
-    # df_public = pd.read_sql(
-    #     f"""
-    #     select *
-    #     from public.{table_name}
-    #     """,
-    #     engine
-    # )
-
-    # df_raw = pd.read_sql(
-    #     f"""
-    #     select *
-    #     from raw.{table_name}
-    #     """,
-    #     engine
-    # )
-
-    # if add_mark_date_of_upload:
-    #     pass
-
     conn.commit()
     conn.close()
-    pass
+
+
+    NOW_DATE = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # LAST_UPLOAD_DATE = ''
+    print("Читаю...")
+    df = pd.read_sql(
+        f"""
+        select *
+        from public.{table_name}
+        """,
+        engine
+    )
+    logging.info("Прочитал...")
+
+    df['date_of_upload'] = [NOW_DATE for i in range(len(df.index))]
+    logging.info("Добавил даты...")
+
+    df.drop_duplicates(list(df.columns.values)[:-1])
+    logging.info("Дропнул дубликаты...")
+
+    df.set_index(list(df.columns.values)[1], inplace=True)
+    logging.info("Убрал ненужный столбец...")
+
+    df.to_sql(table_name, engine, schema="raw", if_exists="append")
+    logging.info("Теперь я в базе!")
+
+    # conn.commit()
+    # conn.close()
+
 
 
 def create_datamart(table_name: str, schema_from: str = 'raw', schema_to: str = 'datamart'):
@@ -108,15 +117,16 @@ def create_datamart(table_name: str, schema_from: str = 'raw', schema_to: str = 
             {schema_from}.costed_event.calling_msisdn,
             {schema_from}.costed_event.date as event_date, 
             {schema_from}.charge.date as charge_date
-        FROM customer
-        RIGHT JOIN product_instance
+        FROM {schema_from}.customer
+        RIGHT JOIN {schema_from}.product_instance
             ON {schema_from}.customer.customer_id = {schema_from}.product_instance.customer_id_fk
-        LEFT JOIN product
+        LEFT JOIN {schema_from}.product
             ON {schema_from}.product.product_id = {schema_from}.product_instance.product_id_fk
-        RIGHT JOIN costed_event
+        RIGHT JOIN {schema_from}.costed_event
             ON {schema_from}.costed_event.product_instance_id_fk = {schema_from}.product_instance.product_instance_id_pk 
-        RIGHT JOIN charge
+        RIGHT JOIN {schema_from}.charge
             ON {schema_from}.charge.product_instance_id_fk = {schema_from}.product_instance.product_instance_id_pk
+        WHERE {schema_from}.costed_event.date_of_upload = (select date_of_upload from {schema_from}.costed_event order by date_of_upload desc limit 1);
         """,
         engine
     )
@@ -142,12 +152,70 @@ with DAG(dag_id=DAG_ID,
     start_task = DummyOperator(task_id='START', dag=dag)
     end_task = DummyOperator(task_id='END', dag=dag)
 
+    # dg_scr.castomer_const_find()
+    #     dg_scr.ProductInstance().save_to_csv() 
+    #     dg_scr.Customer().save_to_csv()
+    #     dg_scr.CostedEvent().save_to_csv() 
+    #     dg_scr.Charge().save_to_csv()
+    #     dg_scr.Payment().save_to_csv()
 
-    load_data_to_row = PythonOperator(
+    #  ----
+    to_row_product = PythonOperator(
         dag=dag,
-        task_id=f"{DAG_ID}.load_data_to_row",
-        python_callable=load_data_to_raw
+        task_id=f"{DAG_ID}.to_row_product",
+        python_callable=load_data_to_raw,
+        op_kwargs={
+            "table_name": f"product",
+        }
     )
+
+    to_row_product_instance = PythonOperator(
+        dag=dag,
+        task_id=f"{DAG_ID}.to_row_product_instance",
+        python_callable=load_data_to_raw,
+        op_kwargs={
+            "table_name": f"product_instance",
+        }
+    )
+
+    to_row_customer = PythonOperator(
+        dag=dag,
+        task_id=f"{DAG_ID}.to_row_customer",
+        python_callable=load_data_to_raw,
+        op_kwargs={
+            "table_name": f"customer",
+        }
+    )
+
+    to_row_costed_event = PythonOperator(
+        dag=dag,
+        task_id=f"{DAG_ID}.to_row_costed_event",
+        python_callable=load_data_to_raw,
+        op_kwargs={
+            "table_name": f"costed_event",
+        }
+    )
+
+    to_row_charge = PythonOperator(
+        dag=dag,
+        task_id=f"{DAG_ID}.to_row_charge",
+        python_callable=load_data_to_raw,
+        op_kwargs={
+            "table_name": f"charge",
+        }
+    )
+
+    to_row_payment = PythonOperator(
+        dag=dag,
+        task_id=f"{DAG_ID}.to_row_payment",
+        python_callable=load_data_to_raw,
+        op_kwargs={
+            "table_name": f"payment",
+        }
+    )
+
+
+    # -----
 
     create_datamart_from = PythonOperator(
         dag=dag,
@@ -155,9 +223,19 @@ with DAG(dag_id=DAG_ID,
         python_callable=create_datamart, 
         op_kwargs={
             "table_name": f"Datamart_test_version",
-            "schema_from": 'public',
+            "schema_from": 'raw',
         }
     )
 
-    start_task >> load_data_to_row >> create_datamart_from >> end_task
+    start_task >> \
+    [
+        to_row_product,
+        to_row_product_instance,
+        to_row_customer,
+        to_row_costed_event,
+        to_row_charge,
+        to_row_payment ,
+    ]  >> \
+    create_datamart_from >> \
+    end_task
 

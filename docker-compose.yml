@@ -109,7 +109,7 @@ services:
       - ./resources:/usr/local/spark/resources #Resources folder (Must be the same path in airflow and Spark Cluster)
       # - ./example:/usr/local/spark/example #Resources folder (Must be the same path in airflow and Spark Cluster)
     ports:
-      - "8181:8080"
+      - "8181:8181"
       - "7077:7077"
 
   spark-worker-1:

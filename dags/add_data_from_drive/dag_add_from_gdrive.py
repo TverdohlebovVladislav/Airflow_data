@@ -211,23 +211,23 @@ with DAG(dag_id=DAG_ID,
 
     # -------
 
-    add_data_db_product = PythonOperator(
-        dag=dag,
-        task_id=f"{DAG_ID}.add_data_db_PRODUCT",
-        python_callable=update_db_data,
-        op_kwargs={
-            "table_name": "Product"
-        }
-    )
+    # add_data_db_product = PythonOperator(
+    #     dag=dag,
+    #     task_id=f"{DAG_ID}.add_data_db_PRODUCT",
+    #     python_callable=update_db_data,
+    #     op_kwargs={
+    #         "table_name": "Product"
+    #     }
+    # )
 
-    add_data_db_customer = PythonOperator(
-        dag=dag,
-        task_id=f"{DAG_ID}.add_data_db_CUSTOMER",
-        python_callable=update_db_data,
-        op_kwargs={
-            "table_name": "Customer"
-        }
-    )
+    # add_data_db_customer = PythonOperator(
+    #     dag=dag,
+    #     task_id=f"{DAG_ID}.add_data_db_CUSTOMER",
+    #     python_callable=update_db_data,
+    #     op_kwargs={
+    #         "table_name": "Customer"
+    #     }
+    # )
 
     # add_data_db_customer = SparkSubmitOperator(dag=dag,
     #         task_id=f"{DAG_ID}.add_data_db_CUSTOMER",
@@ -245,8 +245,6 @@ with DAG(dag_id=DAG_ID,
 
     start_task >> \
     [add_data_local_customer, add_data_local_product] >> \
-    add_data_db_product >> \
-    add_data_db_customer >> \
     end_task
 
 

@@ -12,4 +12,4 @@ httplib2==0.13.1
 pyasn1-modules==0.2.6
 psycopg2-binary
 tqdm
-apache-airflow[yandexcloud]
+apache-airflow[yandexcloud] 
