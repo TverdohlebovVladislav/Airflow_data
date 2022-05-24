@@ -25,6 +25,7 @@ def get_sql(schema: str) -> str:
                 first_name TEXT NOT NULL, 
                 last_name TEXT NOT NULL,
                 gender TEXT NOT NULL,
+                age INTEGER,
                 language TEXT, 
                 agree_for_promo INTEGER,
                 autopay_card TEXT,
@@ -34,6 +35,7 @@ def get_sql(schema: str) -> str:
                 customer_since TEXT, 
                 email TEXT,
                 region TEXT,
+                geo TEXT,
                 termination_date DATE, 
                 msisdn TEXT,
                 date_of_upload TIMESTAMP
@@ -53,7 +55,7 @@ def get_sql(schema: str) -> str:
                 product_instance_id_fk INTEGER NOT NULL, 
                 calling_msisdn INTEGER,
                 called_msisdn INTEGER,
-                date TIMESTAMP, 
+                date_costed_event TIMESTAMP, 
                 cost DECIMAL,
                 duration INTEGER,
                 number_of_sms INTEGER, 
@@ -67,7 +69,7 @@ def get_sql(schema: str) -> str:
                 charge_id_pk INTEGER,
                 product_instance_id_fk INTEGER NOT NULL, 
                 charge_counter INTEGER,
-                date TIMESTAMP,
+                date_charge TIMESTAMP,
                 cost DECIMAL, 
                 event_type BOOLEAN,
                 date_of_upload TIMESTAMP
@@ -76,7 +78,7 @@ def get_sql(schema: str) -> str:
                 payment_id_pk INTEGER,
                 customer_id_fk INTEGER NOT NULL, 
                 payment_method TEXT,
-                date TIMESTAMP,
+                date_payment TIMESTAMP,
                 amount DECIMAL,
                 date_of_upload TIMESTAMP
             );
@@ -105,6 +107,7 @@ def get_sql(schema: str) -> str:
                 first_name TEXT NOT NULL, 
                 last_name TEXT NOT NULL,
                 gender TEXT NOT NULL,
+                age TEXT,
                 language TEXT, 
                 agree_for_promo INTEGER,
                 autopay_card TEXT,
@@ -114,6 +117,7 @@ def get_sql(schema: str) -> str:
                 customer_since TEXT, 
                 email TEXT,
                 region TEXT,
+                geo TEXT,
                 termination_date DATE, 
                 msisdn TEXT
             );
@@ -131,7 +135,7 @@ def get_sql(schema: str) -> str:
                 product_instance_id_fk INTEGER REFERENCES product_instance(product_instance_id_pk) NOT NULL, 
                 calling_msisdn INTEGER,
                 called_msisdn INTEGER,
-                date TIMESTAMP, 
+                date_costed_event TIMESTAMP, 
                 cost DECIMAL,
                 duration INTEGER,
                 number_of_sms INTEGER, 
@@ -144,7 +148,7 @@ def get_sql(schema: str) -> str:
                 charge_id_pk SERIAL PRIMARY KEY,
                 product_instance_id_fk INTEGER REFERENCES product_instance(product_instance_id_pk) NOT NULL, 
                 charge_counter INTEGER,
-                date TIMESTAMP,
+                date_charge TIMESTAMP,
                 cost DECIMAL, 
                 event_type BOOLEAN
             );
@@ -152,7 +156,7 @@ def get_sql(schema: str) -> str:
                 payment_id_pk SERIAL PRIMARY KEY,
                 customer_id_fk INTEGER REFERENCES customer(customer_id) NOT NULL, 
                 payment_method TEXT,
-                date TIMESTAMP,
+                date_payment TIMESTAMP,
                 amount DECIMAL
             );
         """

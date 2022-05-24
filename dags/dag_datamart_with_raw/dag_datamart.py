@@ -14,8 +14,9 @@ from sqlalchemy_utils import database_exists, create_database
 from sqlalchemy.schema import CreateSchema
 import psycopg2
 import core
-
+import psycopg2.pool
 import logging
+import sqlalchemy.pool as pool
 
 DAG_DEFAULT_ARGS = {'start_date': datetime(2020, 1, 1), 'depends_on_past': False}
 DEFAULT_POSTGRES_CONN_ID = "clean_data"
@@ -29,6 +30,25 @@ CONNECT_DB_DATA = [
     'clean_data'
 ]
 
+pool_config = {
+    'host' : 'rc1b-w374pkyvwys3vlrp.mdb.yandexcloud.net',
+    'port' : '6432',
+    'dbname' : 'main',
+    'user' : 'airflow',
+    'password' : 'airflow$007',
+    'target_session_attrs' : 'read-write',
+    'sslmode' : 'verify-full',
+}
+conn = psycopg2.connect("""
+    host=rc1b-w374pkyvwys3vlrp.mdb.yandexcloud.net
+    port=6432
+    dbname=main
+    user=airflow
+    password=airflow$007
+    target_session_attrs=read-write
+    sslmode=verify-full
+""")
+
 DAG_ID = "СREATE_DATAMART_FROM_RAW"
 schedule = "@weekly"
 
@@ -37,10 +57,14 @@ def create_engine_session(user, passwd, host, port, db):
     '''
     Create engine with sqlalchemy to management DB
     '''
-    url = f"postgresql://{user}:{passwd}@{host}:{port}/{db}"
-    if not database_exists(url):
-        create_database(url)
-    engine = create_engine(url)
+    mypool = pool.QueuePool(conn, max_overflow=10, pool_size=5)
+    POOL = psycopg2.pool.ThreadedConnectionPool(0, 32, **pool_config)
+    engine = create_engine('postgresql+psycopg2://', creator=POOL.getconn)
+
+    # url = f"postgresql://{user}:{passwd}@{host}:{port}/{db}"
+    # if not database_exists(url):
+    #     create_database(url)
+    # engine = create_engine(url)
     session = sessionmaker(bind=engine)()
     return engine, session
 
@@ -81,8 +105,6 @@ def load_data_to_raw(table_name: str) -> None:
     df.to_sql(table_name, engine, schema="raw", if_exists="append")
     logging.info("Теперь я в базе!")
 
-    # conn.commit()
-    # conn.close()
 
 
 
@@ -100,14 +122,15 @@ def create_datamart(table_name: str, schema_from: str = 'raw', schema_to: str = 
     conn.commit()
     conn.close()
 
-    df = pd.read_sql(
-        f"""
+    sql = f"""
         SELECT 
             {schema_from}.customer.customer_id,
             {schema_from}.customer.first_name,
             {schema_from}.customer.last_name,
             {schema_from}.customer.termination_date, 
             {schema_from}.customer.email, 
+            {schema_from}.customer.age, 
+            {schema_from}.customer.geo, 
             {schema_from}.customer.msisdn,
             {schema_from}.product.product_id,
             {schema_from}.product.allowance_data,
@@ -115,8 +138,8 @@ def create_datamart(table_name: str, schema_from: str = 'raw', schema_to: str = 
             {schema_from}.costed_event.direction,
             {schema_from}.costed_event.event_type,
             {schema_from}.costed_event.calling_msisdn,
-            {schema_from}.costed_event.date as event_date, 
-            {schema_from}.charge.date as charge_date
+            {schema_from}.costed_event.date_costed_event as event_date, 
+            {schema_from}.charge.date_charge as charge_date
         FROM {schema_from}.customer
         RIGHT JOIN {schema_from}.product_instance
             ON {schema_from}.customer.customer_id = {schema_from}.product_instance.customer_id_fk
@@ -126,19 +149,17 @@ def create_datamart(table_name: str, schema_from: str = 'raw', schema_to: str = 
             ON {schema_from}.costed_event.product_instance_id_fk = {schema_from}.product_instance.product_instance_id_pk 
         RIGHT JOIN {schema_from}.charge
             ON {schema_from}.charge.product_instance_id_fk = {schema_from}.product_instance.product_instance_id_pk
-        WHERE {schema_from}.costed_event.date_of_upload = (select date_of_upload from {schema_from}.costed_event order by date_of_upload desc limit 1);
-        """,
+        """
+    if schema_from == 'raw':
+        sql += """ WHERE {schema_from}.product.date_of_upload = (select date_of_upload from {schema_from}.product order by date_of_upload desc limit 1);"""
+
+    df = pd.read_sql(
+        sql,
         engine
     )
-    df.to_sql(table_name, engine, schema=schema_to, if_exists="replace")
+    df.to_sql(table_name, engine, schema='datamart', if_exists="replace")
     
 
-
-def create_simple_example_tables():
-    '''
-    Examples of requests to DB 
-    '''
-    pass
 
 
 with DAG(dag_id=DAG_ID,
@@ -222,8 +243,8 @@ with DAG(dag_id=DAG_ID,
         task_id=f"{DAG_ID}.create_datamart_from",
         python_callable=create_datamart, 
         op_kwargs={
-            "table_name": f"Datamart_test_version",
-            "schema_from": 'raw',
+            "table_name": f"dashboard",
+            "schema_from": 'public',
         }
     )
 

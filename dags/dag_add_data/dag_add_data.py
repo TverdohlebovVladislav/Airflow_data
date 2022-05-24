@@ -14,8 +14,32 @@ import os.path
 from os.path import dirname, abspath
 d = dirname(dirname(abspath(__file__)))
 import data_generate_scripts as dg_scr
+import sqlalchemy.pool as pool
+import core
 
 import oauth2client
+import logging
+import psycopg2.pool
+
+conn = psycopg2.connect("""
+    host=rc1b-w374pkyvwys3vlrp.mdb.yandexcloud.net
+    port=6432
+    dbname=main
+    user=airflow
+    password=airflow$007
+    target_session_attrs=read-write
+    sslmode=verify-full
+""")
+pool_config = {
+    'host' : 'rc1b-w374pkyvwys3vlrp.mdb.yandexcloud.net',
+    'port' : '6432',
+    'dbname' : 'main',
+    'user' : 'airflow',
+    'password' : 'airflow$007',
+    'target_session_attrs' : 'read-write',
+    'sslmode' : 'verify-full',
+}
+
 
 
 DAG_DEFAULT_ARGS = {'start_date': datetime(2020, 1, 1), 'depends_on_past': False}
@@ -30,14 +54,24 @@ def load_csv_pandas(file_path: str, table_name: str, schema: str = "raw", conn_i
     """
     Load data from csv to DB
     """
-    conn_object = BaseHook.get_connection(conn_id or DEFAULT_POSTGRES_CONN_ID)
-    # extra = conn_object.extra_dejson
-    jdbc_url = f"postgresql://{conn_object.login}:{conn_object.password}@" \
-               f"{conn_object.host}:{conn_object.port}/{conn_object.schema}"
+    logging.info("НАЧИНАЮ ЗАГРУЗКУ ДАННЫХ")
+    # conn_object = BaseHook.get_connection(conn_id or DEFAULT_POSTGRES_CONN_ID)
+    # # extra = conn_object.extra_dejson
+    # # jdbc_url = f"postgresql://{conn_object.login}:{conn_object.password}@" \
+    # #            f"{conn_object.host}:{conn_object.port}/{conn_object.schema}"
+    # jdbc_url = f"postgresql://airflow:airflow$007@" \
+    #            f"rc1b-w374pkyvwys3vlrp.mdb.yandexcloud.net:6432/main"
     df = pd.read_csv(file_path)
-    engine = create_engine(jdbc_url)
+    # engine = create_engine(jdbc_url)
+    logging.info("ПРОЧИТАЛ ФАЙЛЫ")
     df.set_index(df.columns[0], inplace=True)
-    df.to_sql(table_name, engine, schema=schema, if_exists="append")
+    logging.info("НАЧИНАЮ ЗАГРУЗКУ В БАЗУ")
+    mypool = pool.QueuePool(conn, max_overflow=10, pool_size=5)
+    POOL = psycopg2.pool.ThreadedConnectionPool(0, 32, **pool_config)
+
+    engine = create_engine('postgresql+psycopg2://', creator=POOL.getconn)
+    df.to_sql(table_name, engine, if_exists="append")
+    logging.info("ЗАГРУЗИЛ В БАЗУ")
 
 
 def create_connection(db_name, db_user, db_password, db_host, db_port):
@@ -46,16 +80,10 @@ def create_connection(db_name, db_user, db_password, db_host, db_port):
     """
     connection = None
     try:
-        connection = psycopg2.connect(
-            database=db_name,
-            user=db_user,
-            password=db_password,
-            host=db_host,
-            port=db_port,
-        )
-        print("Connection to PostgreSQL DB successful")
+        connection = conn
+        logging.info("Connection to PostgreSQL DB successful")
     except OperationalError as e:
-        print(f"The error '{e}' occurred")
+        logging.info(f"The error '{e}' occurred")
     return connection
 
 
@@ -106,88 +134,15 @@ def create_db_for_clean_data(conn_id: str = None) -> None:
     conn_object = BaseHook.get_connection(conn_id or DEFAULT_POSTGRES_CONN_ID)
 
     # Connect to exists database
-    connection = create_connection('airflow', conn_object.login, conn_object.password, conn_object.host, conn_object.port)
+    connection = create_connection('bd1', conn_object.login, conn_object.password, conn_object.host, conn_object.port)
     create_database_query = "CREATE DATABASE clean_data"
 
     # Create clean db bi nit exists
-    create_database(connection, create_database_query)
+    # create_database(connection, create_database_query)
     connetction_clean = create_connection('clean_data', conn_object.login, conn_object.password, conn_object.host, conn_object.port)
 
     # Create tables if they are not exists for first launch
-    create_tables = """
-
-        SET datestyle = dmy;
-
-        CREATE TABLE IF NOT EXISTS product (
-            product_id SERIAL PRIMARY KEY,
-            product_name TEXT NOT NULL, 
-            product_category TEXT,
-            product_type TEXT,
-            recurrent TEXT,
-            cost_for_call DECIMAL,
-            cost_for_sms DECIMAL,
-            cost_for_data DECIMAL,
-            allowance_sms TEXT,
-            allowance_voice TEXT,
-            allowance_data TEXT,
-            price DECIMAL
-        );
-        CREATE TABLE IF NOT EXISTS customer (
-            customer_id SERIAL PRIMARY KEY,
-            first_name TEXT NOT NULL, 
-            last_name TEXT NOT NULL,
-            gender TEXT NOT NULL,
-            language TEXT, 
-            agree_for_promo INTEGER,
-            autopay_card TEXT,
-            customer_category TEXT, 
-            status TEXT,
-            data_of_birth DATE,
-            customer_since TEXT, 
-            email TEXT,
-            region TEXT,
-            termination_date DATE, 
-            msisdn TEXT
-        );
-        CREATE TABLE IF NOT EXISTS product_instance (
-            product_instance_id_pk SERIAL PRIMARY KEY,
-            customer_id_fk INTEGER REFERENCES customer(customer_id) NOT NULL, 
-            product_id_fk INTEGER REFERENCES product(product_id) NOT NULL,
-            activation_date DATE,
-            termination_date DATE, 
-            status INTEGER,
-            distribution_channel TEXT
-        );
-        CREATE TABLE IF NOT EXISTS costed_event (
-            event_id_pk SERIAL PRIMARY KEY,
-            product_instance_id_fk INTEGER REFERENCES product_instance(product_instance_id_pk) NOT NULL, 
-            calling_msisdn INTEGER,
-            called_msisdn INTEGER,
-            date TIMESTAMP, 
-            cost DECIMAL,
-            duration INTEGER,
-            number_of_sms INTEGER, 
-            number_of_data INTEGER,
-            event_type TEXT,
-            direction TEXT, 
-            roaming INTEGER
-        );
-        CREATE TABLE IF NOT EXISTS charge (
-            charge_id_pk SERIAL PRIMARY KEY,
-            product_instance_id_fk INTEGER REFERENCES product_instance(product_instance_id_pk) NOT NULL, 
-            charge_counter INTEGER,
-            date TIMESTAMP,
-            cost DECIMAL, 
-            event_type BOOLEAN
-        );
-        CREATE TABLE IF NOT EXISTS payment (
-            payment_id_pk SERIAL PRIMARY KEY,
-            customer_id_fk INTEGER REFERENCES customer(customer_id) NOT NULL, 
-            payment_method TEXT,
-            date TIMESTAMP,
-            amount DECIMAL
-        );
-    """
+    create_tables = core.get_sql('public')
     execute_query(connetction_clean, create_tables)
 
 
@@ -225,7 +180,7 @@ def add_data_to_clean_db(conn_id: str = None) -> None:
 
     # Create csv if it not exists
     path_to_files = f"{AIRFLOW_HOME}/csv/"
-
+    logging.info("НАЧИНАЮ ЧЕКАТЬ")
     if not check_table_for_emptiness('product'):
         load_csv_pandas(path_to_files + 'Product.csv', 'product', 'public')
     if not check_table_for_emptiness('customer'):
@@ -251,10 +206,10 @@ def generate_new_data(conn_id: str = None) -> None:
     dg_scr.TableProductBase.max_count_costed_event = 50
 
     # Find max count to start FROM DB
-    conn_object = BaseHook.get_connection(conn_id or DEFAULT_POSTGRES_CONN_ID)
-    jdbc_url = f"postgresql://{conn_object.login}:{conn_object.password}@" \
-               f"{conn_object.host}:{conn_object.port}/{conn_object.schema}"
-    engine = create_engine(jdbc_url)
+    mypool = pool.QueuePool(conn, max_overflow=10, pool_size=5)
+    POOL = psycopg2.pool.ThreadedConnectionPool(0, 32, **pool_config)
+
+    engine = create_engine('postgresql+psycopg2://', creator=POOL.getconn)
     counted_rows = pd.read_sql(
         """
         SELECT COUNT(*) as count from public.payment

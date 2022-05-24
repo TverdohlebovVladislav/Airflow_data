@@ -23,7 +23,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
+import sqlalchemy.pool as pool
+import core
 
+import oauth2client
+import logging
+import psycopg2.pool
+import pandas as pd
 
 from pyspark.sql import SparkSession
 
@@ -49,6 +55,26 @@ postgres_driver_jar = "/usr/local/spark/resources/postgresql-9.4.1207.jar"
 # MODIFICATE LATER !
 
 
+conn = psycopg2.connect("""
+    host=rc1b-w374pkyvwys3vlrp.mdb.yandexcloud.net
+    port=6432
+    dbname=main
+    user=airflow
+    password=airflow$007
+    target_session_attrs=read-write
+    sslmode=verify-full
+""")
+pool_config = {
+    'host' : 'rc1b-w374pkyvwys3vlrp.mdb.yandexcloud.net',
+    'port' : '6432',
+    'dbname' : 'main',
+    'user' : 'airflow',
+    'password' : 'airflow$007',
+    'target_session_attrs' : 'read-write',
+    'sslmode' : 'verify-full',
+}
+
+
 SCOPES = [
     'https://www.googleapis.com/auth/drive.metadata',
     'https://www.googleapis.com/auth/drive',
@@ -56,6 +82,28 @@ SCOPES = [
     'https://www.googleapis.com/auth/spreadsheets.readonly'
 ]
 
+def load_csv_pandas(file_path: str, table_name: str) -> None:
+    """
+    Load data from csv to DB
+    """
+    logging.info("НАЧИНАЮ ЗАГРУЗКУ ДАННЫХ")
+    # conn_object = BaseHook.get_connection(conn_id or DEFAULT_POSTGRES_CONN_ID)
+    # # extra = conn_object.extra_dejson
+    # # jdbc_url = f"postgresql://{conn_object.login}:{conn_object.password}@" \
+    # #            f"{conn_object.host}:{conn_object.port}/{conn_object.schema}"
+    # jdbc_url = f"postgresql://airflow:airflow$007@" \
+    #            f"rc1b-w374pkyvwys3vlrp.mdb.yandexcloud.net:6432/main"
+    df = pd.read_csv(file_path)
+    # engine = create_engine(jdbc_url)
+    logging.info("ПРОЧИТАЛ ФАЙЛЫ")
+    df.set_index(df.columns[0], inplace=True)
+    logging.info("НАЧИНАЮ ЗАГРУЗКУ В БАЗУ")
+    mypool = pool.QueuePool(conn, max_overflow=10, pool_size=5)
+    POOL = psycopg2.pool.ThreadedConnectionPool(0, 32, **pool_config)
+
+    engine = create_engine('postgresql+psycopg2://', creator=POOL.getconn)
+    df.to_sql(table_name, engine, if_exists="append")
+    logging.info("ЗАГРУЗИЛ В БАЗУ")
 
 def get_gdrive_service():
     """
@@ -209,6 +257,27 @@ with DAG(dag_id=DAG_ID,
         }
     )
 
+
+    add_data_db_customer = PythonOperator(
+        dag=dag,
+        task_id=f"{DAG_ID}.add_data_db_customer",
+        python_callable=load_csv_pandas,
+        op_kwargs={
+            "file_path": f"{DOWNLOAD_DATA}/Customer.csv",
+            "table_name": "customer"
+        }
+    )
+
+    # add_data_ldb_product = PythonOperator(
+    #     dag=dag,
+    #     task_id=f"{DAG_ID}.add_data_ldb_product",
+    #     python_callable=load_csv_pandas,
+    #     op_kwargs={
+    #         "file_path": f"{DOWNLOAD_DATA}/Product.csv",
+    #         "table_name": "product"
+    #     }
+    # )
+
     # -------
 
     # add_data_db_product = PythonOperator(
@@ -244,7 +313,8 @@ with DAG(dag_id=DAG_ID,
     #         jars=postgres_driver_jar)
 
     start_task >> \
-    [add_data_local_customer, add_data_local_product] >> \
+    add_data_local_customer >> \
+    add_data_db_customer>> \
     end_task
 
 

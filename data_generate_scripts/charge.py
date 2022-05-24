@@ -63,7 +63,7 @@ class Charge(TableProductBase):
                 "charge_id_pk": pd.Series(charge_id_pk, name="charge_id_pk", dtype="int"),
                 "product_instance_id_fk": pd.Series(product_instance_id_fk_charge, name="product_instance_id_fk", dtype="int"),
                 "charge_counter": pd.Series(charge_counter, name="charge_counter", dtype="int"),
-                "date": pd.Series(date, name="date", dtype="str"),
+                "date_charge": pd.Series(date, name="date", dtype="str"),
                 "cost": pd.Series(cost, name="cost", dtype="int"),
                 "event_type": pd.Series(event_type, name="event_type", dtype="bool")
                 # Add other columns here...

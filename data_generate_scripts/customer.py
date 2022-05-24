@@ -101,6 +101,27 @@ class Customer(TableProductBase):
             if len(set(phone_number)) == len(phone_number):
                 check = False
 
+        # Координаты
+        reg = {'Ontario':'[43.684345,-79.431292]', 'Quebec':'[46.807102,-71.211788]', 
+       'British Columbia':'[48.423095,-123.366788]', 'Alberta':'[53.530798,-113.511802]', 
+       'Manitoba':'[49.887898, -97.134185]', 'Saskatchewan':'[50.464050, -104.605617]', 
+       'Nova Scotia':'[44.653761, -63.601324]', 'New Brunswick':'[45.956694, -66.658084]', 
+       'Newfoundland and Labrador':'[47.561796, -52.712189]',
+       'Prince Edward Island':'[46.252084, -63.138242]', 'Northwest Territories':'[62.455067, -114.426002]', 
+       'Yukon':'[60.735414, -135.083119]', 'Nunavut':'[63.751499, -68.523283]'}
+        geo = []
+        for rg in region:
+            if rg in region:
+                geo.append(reg[rg])
+            else:
+                geo.append(None)
+        
+        # Кол-во полных лет
+        age = []
+        n_date = []
+        for date in data_of_birth:
+            n_date.append(date[:4])
+
         CustomerDf = pd.DataFrame(
             {
                 "customer_id": pd.Series(customer_id_pk, name="customer_id", dtype="int"),
@@ -108,6 +129,9 @@ class Customer(TableProductBase):
                 "first_name": pd.Series(first_name, name="first_name", dtype="str"),
                 "last_name": pd.Series(last_name, name="last_name", dtype="str"),
                 "gender": pd.Series(gender, name="gender", dtype="str"),
+
+                "age": pd.Series(n_date, name="age", dtype="str"),
+
                 "language": pd.Series(language, name='language', dtype='str'),
                 "agree_for_promo": pd.Series(agree_for_promo, name='agree_for_promo', dtype='str'),
                 "autopay_card": pd.Series(autopay_card, name='autopay_card', dtype='str'),
@@ -116,9 +140,11 @@ class Customer(TableProductBase):
                 "data_of_birth": pd.Series(data_of_birth, name="data_of_birth", dtype="str"),
                 "customer_since": pd.Series(customer_since, name="customer_since", dtype="str"),
                 "email" : pd.Series(email, name="email", dtype="str"),
-                "region": pd.Series(region, name="email", dtype="str"),
-                "termination_date": pd.Series(termination_date,name = "termination_date", dtype = "str"),
 
+                "region": pd.Series(region, name="email", dtype="str"),
+                "geo": pd.Series(geo, name="geo", dtype="str"),
+
+                "termination_date": pd.Series(termination_date,name = "termination_date", dtype = "str"),
                 "msisdn": pd.Series(phone_number,name = "msisdn", dtype = "str"),
                 
             }

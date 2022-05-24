@@ -58,7 +58,7 @@ class Payment(TableProductBase):
                 "customer_id_fk": pd.Series(customer_id_fk_in_payment, name="customer_id_fk", dtype="int"),
 
                 "payment_method": pd.Series(payment_method, name="payment_method", dtype="str"),
-                "date": pd.Series(date, name="date", dtype="str"),
+                "date_payment": pd.Series(date, name="date", dtype="str"),
                 "amount": pd.Series(amount, name="customer_id_fk", dtype="float").round(),
             }
         )
